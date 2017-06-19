@@ -9,10 +9,10 @@ describe('ステージ5（意図通りに非同期処理を利用できる）', 
       //
       // ここに下記のコードを記述してください。
       //
-      // promise.then(function(msg) {
-      //   expect(msg).to.equal('resolved!');
-      //   testDone();
-      // });
+       promise.then(function(msg) {
+         expect(msg).to.equal('resolved!');
+         testDone();
+       });
     });
 
 
@@ -21,9 +21,11 @@ describe('ステージ5（意図通りに非同期処理を利用できる）', 
 
       // reject ハンドラーを使って、下の assertion が promise の
       // エラー値を検証できるように記述してください。
-      //
-      // expect(msg).to.equal('rejected!');
-      // testDone();
+      
+       promise.catch(function(msg){
+        expect(msg).to.equal('rejected!');
+        testDone();
+      });
 
       // ここにコードを記述してください。
 
@@ -34,11 +36,16 @@ describe('ステージ5（意図通りに非同期処理を利用できる）', 
     it('複数の promise すべての完了を待つ promise を作成できる', function() {
       var messageFragments = ['あなたと', 'java', '今すぐダウンロード'];
       var promise1 = createWaitPromise(messageFragments[0], 10);
+
       var promise2 = createWaitPromise(messageFragments[1], 20);
       var promise3 = createWaitPromise(messageFragments[2], 30);
 
       // 作成した promise を promise 変数に代入してください。
-      var promise = 'change me!';
+      var promise = Promise.all([
+        promise1,
+        promise2,
+        promise3
+        ]);
 
 
       return expect(promise).to.eventually.deep.equal(messageFragments);
@@ -52,7 +59,11 @@ describe('ステージ5（意図通りに非同期処理を利用できる）', 
       var promise3 = createWaitPromise(messageFragments[2], 30);
 
       // 作成した promise を promise 変数に代入してください。
-      var promise = 'change me!';
+      var promise = Promise.race([
+        promise1,
+        promise2,
+        promise3
+        ]);
 
 
       return expect(promise).to.eventually.equal(messageFragments[1]);
@@ -69,9 +80,9 @@ describe('ステージ5（意図通りに非同期処理を利用できる）', 
       //
       // ここに下記のコードを記述してください。
       //
-      // var promisedFriends = fetch(api + username).then(function(res) {
-      //   return res.json();
-      // });
+       var promisedFriends = fetch(api + username).then(function(res) {
+         return res.json();
+       });
 
 
       return expect(promisedFriends).to.eventually.have.length(1)
@@ -84,7 +95,9 @@ describe('ステージ5（意図通りに非同期処理を利用できる）', 
       var username = 'Shen';
 
       // 作成した promise を promisedFriends 変数に代入してください。
-      var promisedFriends = 'change me!';
+      var promisedFriends = fetch(api+username).then(function(res){
+        return res.json();
+        });
 
 
       return expect(promisedFriends).to.eventually.have.length(2)
@@ -97,8 +110,25 @@ describe('ステージ5（意図通りに非同期処理を利用できる）', 
       var username = 'Shen';
 
       // 作成した promise を promisedFriends 変数に代入してください。
-      var promisedFriends = 'change me!';
-
+      //var promisedFriends = fetch(api + api + username).then(function(res){
+      //return res.json();
+      //});        
+      function getFriends(usernameToFetch){
+        return fetch(api+usernameToFetch).then(function(response){
+          return response.json();
+        });
+      };
+      function flatMap(arrayOfArray){
+        return arrayOfArray.reduce(function(flatArray,array){
+          return flatArray.concat(array);
+        },[]);
+      }
+      var promisedFriends = getFriends(username).then(function(friends){
+        return Promise.all(friends.map(getFriends));
+      })
+      .then(function(friendsArray){
+      return flatMap(friendsArray);
+      });
 
       return expect(promisedFriends).to.eventually.have.length(1)
         .and.have.members(['TypeScript']);
@@ -127,7 +157,9 @@ describe('ステージ5（意図通りに非同期処理を利用できる）', 
     it('Github の mixi-inc の organization の情報を取得できる', function() {
 
       // 作成した promise を mixiOrg 変数に代入してください。
-      var mixiOrg = 'change me!';
+      var mixiOrg = fetch('https://api.github.com/orgs/mixi-inc').then(function(response){
+        return response.json();
+      });
 
       return expect(mixiOrg).to.eventually.have.property('id', 1089312);
 
@@ -136,11 +168,13 @@ describe('ステージ5（意図通りに非同期処理を利用できる）', 
     });
 
 
-    it('Github API を使って、mixi-inc/JavaScriptTraining の情報を取得できる', function() {
+    it('Github API を使って、mixi-inc/F の情報を取得できる', function() {
       var repository = 'mixi-inc/JavaScriptTraining';
 
       // 作成した promise を mixiRepo 変数に代入してください。
-      var mixiRepo = 'change me!';
+      var mixiRepo = fetch('https://api.github.com/repos/' + repository).then(function(response){
+        return response.json();
+      });
 
 
       return expect(mixiRepo).to.eventually.have.property('full_name', repository);
@@ -152,11 +186,43 @@ describe('ステージ5（意図通りに非同期処理を利用できる）', 
 
     it('Github API を使って、VimL、Emacs Lisp でスターが最も多いプロダクト名を' +
        'それぞれ 1 つずつ取得できる', function() {
-      var languages = [ 'VimL', '"Emacs Lisp"' ];
-      var mostPopularRepos = 'change me!';
+     var languages = [ 'VimL', '"Emacs Lisp"' ];
+       /* オブジェクトから、query string を作成する。
+        * @param {Object<string, string>} queryMap パラメーターの辞書オブジェクト。
+        * @return {string} query string。
+        */
+      function buildQueryString(queryMap) {
+        return Object.keys(queryMap)
+          .map(function(key) {
+            return encodeURIComponent(key) + '=' + encodeURIComponent(queryMap[key]);
+          })
+          .join('&');
+      }
 
+      /**
+       * 指定された言語でもっともスターが多いリポジトリ名を返す。
+       * @param {string} lang 言語名。
+       * @return {Thenable<string>} もっともスター数が多いリポジトリ名をもつ
+       *     promise。
+       */
+      function searchMostPoluarRepoByLanguage(lang) {
+        var queryString = buildQueryString({
+          q: 'language:' + lang,
+          sort: 'stars'
+        });
+        console.log(queryString);
+        return fetch('https://api.github.com/search/repositories?' + queryString)
+          .then(function(response) {
+            return response.json();
+          })
+          .then(function(result) {
+            return result.items[0].full_name;
+          });
+      }
       // 作成した promise を mostPopularRepos 変数に代入してください。
 
+      var mostPopularRepos = Promise.all(
+        languages.map(searchMostPoluarRepoByLanguage));
 
       return expect(mostPopularRepos).to.eventually.have.length(2)
         .and.satisfy(function(names) {
